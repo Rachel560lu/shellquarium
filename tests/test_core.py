@@ -3,16 +3,16 @@ import asyncio
 
 from textual.widgets import Button, Static
 
-from terminal_pet.__main__ import main
-from terminal_pet.core.persistence import SAVE_FILE, load_pet
-from terminal_pet.core.pet import LifeStage, Pet
-from terminal_pet.ui.sprites import get_pet_frame
-from terminal_pet.ui.app import TerminalPetApp
-from terminal_pet.ui.themes import SCENE_HEIGHT, SCENE_WIDTH, performance_line, render_scene, render_scene_with_reaction
+from shellquarium.__main__ import main
+from shellquarium.core.persistence import SAVE_FILE, load_pet
+from shellquarium.core.pet import LifeStage, Pet
+from shellquarium.ui.sprites import get_pet_frame
+from shellquarium.ui.app import TerminalPetApp
+from shellquarium.ui.themes import SCENE_HEIGHT, SCENE_WIDTH, performance_line, render_scene, render_scene_with_reaction
 
 
 def test_hatch_creates_pet(monkeypatch, tmp_path, capsys):
-    monkeypatch.setenv("TERMINAL_PET_HOME", str(tmp_path))
+    monkeypatch.setenv("SHELLQUARIUM_HOME", str(tmp_path))
     main(["hatch", "Pixel"])
 
     pet = load_pet()
@@ -23,7 +23,7 @@ def test_hatch_creates_pet(monkeypatch, tmp_path, capsys):
 
 
 def test_feed_after_hatching(monkeypatch, tmp_path):
-    monkeypatch.setenv("TERMINAL_PET_HOME", str(tmp_path))
+    monkeypatch.setenv("SHELLQUARIUM_HOME", str(tmp_path))
     pet = Pet(name="Pixel", stage=LifeStage.BABY)
     SAVE_FILE.parent.mkdir(parents=True, exist_ok=True)
     SAVE_FILE.write_text(json.dumps(pet.to_dict()), encoding="utf-8")
@@ -35,7 +35,7 @@ def test_feed_after_hatching(monkeypatch, tmp_path):
 
 
 def test_sleep_toggles_lights(monkeypatch, tmp_path):
-    monkeypatch.setenv("TERMINAL_PET_HOME", str(tmp_path))
+    monkeypatch.setenv("SHELLQUARIUM_HOME", str(tmp_path))
     pet = Pet(name="Pixel", stage=LifeStage.BABY)
     SAVE_FILE.parent.mkdir(parents=True, exist_ok=True)
     SAVE_FILE.write_text(json.dumps(pet.to_dict()), encoding="utf-8")
@@ -90,7 +90,7 @@ def test_main_without_command_launches_tui(monkeypatch):
         nonlocal called
         called = True
 
-    monkeypatch.setattr("terminal_pet.__main__._cmd_tui", fake_tui)
+    monkeypatch.setattr("shellquarium.__main__._cmd_tui", fake_tui)
     main([])
     assert called
 
@@ -244,7 +244,7 @@ def test_random_walk_changes_position(monkeypatch):
     app = TerminalPetApp()
     app.pet = Pet(name="Pixel", stage=LifeStage.CHILD)
     app._pet_position = (6, 2)
-    monkeypatch.setattr("terminal_pet.ui.app.random.choice", lambda choices: (1, 0))
+    monkeypatch.setattr("shellquarium.ui.app.random.choice", lambda choices: (1, 0))
     app._advance_pet_motion()
     assert app._pet_position == (7, 2)
     assert app._pet_is_moving

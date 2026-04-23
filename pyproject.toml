@@ -3,15 +3,15 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "terminal-pet"
+name = "shellquarium"
 version = "0.1.0"
-description = "Minimal CLI terminal pet"
+description = "A cozy terminal aquarium pet"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["textual>=0.70,<1"]
 
 [project.scripts]
-terminal-pet = "terminal_pet.__main__:main"
+shellquarium = "shellquarium.__main__:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

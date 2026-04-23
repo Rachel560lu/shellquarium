@@ -1,2 +1,0 @@
-[console_scripts]
-terminal-pet = terminal_pet.__main__:main

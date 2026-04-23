@@ -1,4 +1,4 @@
-# Termiquarium
+# Shellquarium
 
 A cozy terminal pet aquarium with a jelly pet, a crab companion, a shell shop, and a built-in Pomodoro mode.
 
@@ -41,7 +41,7 @@ pip install -e .
 If you do not want to install the package, you can still run it with:
 
 ```bash
-PYTHONPATH=src python -m terminal_pet --help
+PYTHONPATH=src python -m shellquarium --help
 ```
 
 ## How To Use
@@ -49,7 +49,7 @@ PYTHONPATH=src python -m terminal_pet --help
 Launch the TUI:
 
 ```bash
-python -m terminal_pet
+python -m shellquarium
 ```
 
 Inside the TUI you can:
@@ -84,38 +84,38 @@ When a focus session completes:
 Create a new pet:
 
 ```bash
-python -m terminal_pet hatch Pixel
+python -m shellquarium hatch Pixel
 ```
 
 Show the current pet status:
 
 ```bash
-python -m terminal_pet status
+python -m shellquarium status
 ```
 
 Run actions:
 
 ```bash
-python -m terminal_pet feed
-python -m terminal_pet play
-python -m terminal_pet clean
-python -m terminal_pet heal
-python -m terminal_pet discipline
-python -m terminal_pet sleep
+python -m shellquarium feed
+python -m shellquarium play
+python -m shellquarium clean
+python -m shellquarium heal
+python -m shellquarium discipline
+python -m shellquarium sleep
 ```
 
 Delete the current save and start over:
 
 ```bash
-python -m terminal_pet reset
+python -m shellquarium reset
 ```
 
 If you installed the package with `pip install -e .`, you can also use the script entry point:
 
 ```bash
-terminal-pet
-terminal-pet hatch Pixel
-terminal-pet status
+shellquarium
+shellquarium hatch Pixel
+shellquarium status
 ```
 
 ## Commands
@@ -137,15 +137,15 @@ terminal-pet status
 By default, save data is written to:
 
 ```text
-~/.terminal_pet/pet.json
+~/.shellquarium/pet.json
 ```
 
-You can override the save location by setting `TERMINAL_PET_HOME`.
+You can override the save location by setting `SHELLQUARIUM_HOME`.
 
 Example:
 
 ```bash
-TERMINAL_PET_HOME=/tmp/termiquarium python -m terminal_pet hatch Pixel
+SHELLQUARIUM_HOME=/tmp/shellquarium python -m shellquarium hatch Pixel
 ```
 
 ## Development
