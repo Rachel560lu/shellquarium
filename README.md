@@ -8,10 +8,6 @@ The main dashboard keeps the aquarium, pet actions, shell balance, and virtual p
 
 ![Shellquarium main dashboard](docs/screenshots/shellquarium-main.png)
 
-| Shell Shop | Daily and Weekly Tasks | Collection and Achievements |
-| --- | --- | --- |
-| ![Shell Shop](docs/screenshots/shellquarium-shop.png) | ![Daily and weekly tasks](docs/screenshots/shellquarium-tasks.png) | ![Collection and achievements](docs/screenshots/shellquarium-collection.png) |
-
 ## What It Does
 
 This project gives you a small Tamagotchi-inspired pet that lives in a terminal aquarium.
