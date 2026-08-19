@@ -53,6 +53,14 @@ class Pet:
     collected_shell_common: int = 0
     collected_shell_rare: int = 0
     collection_unseen: bool = False
+    inventory: dict[str, int] = field(default_factory=dict)
+    owned_decorations: list[str] = field(default_factory=list)
+    xp: int = 0
+    unlocked_achievements: list[str] = field(default_factory=list)
+    owned_badges: list[str] = field(default_factory=list)
+    daily_task_state: dict = field(default_factory=dict)
+    weekly_task_state: dict = field(default_factory=dict)
+    lifetime_counters: dict[str, int] = field(default_factory=dict)
     is_sick: bool = False
     lights_on: bool = True
     care_mistakes: int = 0
@@ -193,6 +201,14 @@ class Pet:
             "collected_shell_common": self.collected_shell_common,
             "collected_shell_rare": self.collected_shell_rare,
             "collection_unseen": self.collection_unseen,
+            "inventory": self.inventory,
+            "owned_decorations": self.owned_decorations,
+            "xp": self.xp,
+            "unlocked_achievements": self.unlocked_achievements,
+            "owned_badges": self.owned_badges,
+            "daily_task_state": self.daily_task_state,
+            "weekly_task_state": self.weekly_task_state,
+            "lifetime_counters": self.lifetime_counters,
             "is_sick": self.is_sick,
             "lights_on": self.lights_on,
             "care_mistakes": self.care_mistakes,
@@ -216,6 +232,14 @@ class Pet:
         payload.setdefault("collected_shell_common", 0)
         payload.setdefault("collected_shell_rare", 0)
         payload.setdefault("collection_unseen", False)
+        payload.setdefault("inventory", {})
+        payload.setdefault("owned_decorations", [])
+        payload.setdefault("xp", 0)
+        payload.setdefault("unlocked_achievements", [])
+        payload.setdefault("owned_badges", [])
+        payload.setdefault("daily_task_state", {})
+        payload.setdefault("weekly_task_state", {})
+        payload.setdefault("lifetime_counters", {})
         # Legacy compatibility: if an older save has a dead pet, revive it into
         # an elder stage (death is no longer part of the game loop).
         if payload["stage"] == LifeStage.DEAD:

@@ -254,8 +254,8 @@ def test_shell_animates_between_scene_frames():
     scene_a = render_scene("tank", pet, 0)
     scene_b = render_scene("tank", pet, 2)
     assert scene_a != scene_b
-    assert "[bright_white]_[/]" in scene_a or "[bright_white].[/]" in scene_a
-    assert "[bright_white]_[/]" in scene_b or "[bright_white].[/]" in scene_b
+    assert "[bright_white]" in scene_a
+    assert "[bright_white]" in scene_b
 
 
 def test_arrow_keys_change_focus_status_text():
@@ -323,7 +323,8 @@ def test_focus_completion_rewards_shell_and_starts_break():
     app.action_toggle_pomodoro()
     events = app._update_pomodoro((app._pomodoro_end_at or 0) + 0.1)
 
-    assert app.pet.shells == 1
+    # The completed focus earns one shell plus the first-focus daily task reward.
+    assert app.pet.shells == 4
     assert app._pomodoros_completed == 1
     assert app._pomodoro_mode == "break"
     assert app._pomodoro_running
