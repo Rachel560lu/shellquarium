@@ -15,6 +15,9 @@ The current version supports:
 - a shell shop panel with a browsable text-only item list
 - a Pomodoro Crab timer panel with focus / break states
 - a Pomodoro scene that swaps the tank view to jelly + big ASCII clock + progress bar while a session is active
+- a shell shop with consumables, inventory, and one-time collection decorations
+- daily and weekly tasks that reward shells and XP
+- virtual levels, achievement badges, and collection-only decoration rewards
 - hatching a new pet
 - checking pet status
 - feeding, playing, cleaning, healing, disciplining, and sleeping
@@ -62,7 +65,7 @@ Inside the TUI you can:
 - browse shell shop items with up and down when the shell is selected
 - start, pause, resume, or stop the Pomodoro timer from the crab panel
 - watch the tank switch into a jelly + clock focus scene during Pomodoro mode
-- use hotkeys: `left`, `right`, `up`, `down`, `enter`, `x`, `o`, `f`, `p`, `c`, `h`, `d`, `s`, `r`, `q`
+- use hotkeys: `left`, `right`, `up`, `down`, `enter`, `x`, `o`, `i`, `u`, `f`, `p`, `c`, `h`, `d`, `s`, `r`, `q`
 - let the pet update every second while the app is open
 - quit with `q`
 
@@ -79,6 +82,24 @@ When a focus session completes:
 
 - the crab awards `+1` shell
 - the timer automatically switches to a break session
+
+### Shell Shop and Inventory
+
+When the Shell Shop is selected:
+
+- use `up` / `down` to browse items
+- press `enter` to buy the selected item
+- press `i` to open Inventory
+- press `u` to use the selected consumable
+- press `o` to open Collection
+
+Consumables include Seaweed Snack, Bubble Tea, Tiny Sponge, and Pearl Tonic. Seaweed Ribbon, Bubble Stone, Pink Star Clip, and Moon Shell Lamp are one-time collection decorations. These decorations are displayed in Collection only and do not change existing pet or item ASCII art.
+
+### Tasks and Virtual Progression
+
+The TUI tracks three daily tasks and three weekly tasks. Completed tasks automatically award shells and XP. XP contributes to a virtual level that is independent of the pet's life stage.
+
+Achievements award additional XP and Collection badges for milestones such as first care, tidy tanks, completed focus sessions, task completion, owned decorations, and opened Streak Chests. No achievement requires reaching a specific life stage.
 
 ## CLI Commands
 
@@ -141,6 +162,8 @@ By default, save data is written to:
 ~/.shellquarium/pet.json
 ```
 
+The save file also stores shop inventory, owned decorations, task progress, virtual XP, achievement badges, and lifetime counters. Older save files are upgraded with empty defaults when loaded.
+
 You can override the save location by setting `SHELLQUARIUM_HOME`.
 
 Example:
@@ -167,7 +190,6 @@ PYTHONPATH=src .venv/bin/python -m pytest -q
 
 This is still a small TUI + CLI aquarium. It does not include:
 
-- buying shell shop items yet
 - configurable Pomodoro lengths in the UI yet
 - multiple save slots
 - social or AI-agent integrations

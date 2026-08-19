@@ -11,6 +11,15 @@ from textual.widgets import Button, Footer, Header, Input, Static
 from shellquarium.core.persistence import delete_pet, load_pet, save_pet
 from shellquarium.core.collection import CHARACTERS, STREAK_CHEST_INTERVAL, roll_streak_chest_drop
 from shellquarium.core.pet import Pet
+from shellquarium.core.progression import (
+    evaluate_achievements,
+    record_counter,
+    task_definitions,
+    task_state,
+    update_progress,
+    virtual_level,
+)
+from shellquarium.core.shop import SHOP_CATALOG, buy_item, use_item
 from shellquarium.ui.themes import (
     DEFAULT_PET_POSITION,
     PET_HEIGHT,
@@ -24,10 +33,14 @@ from shellquarium.ui.themes import (
 
 FOCUS_TARGETS = ("crab", "pet", "shell")
 SHOP_ITEMS = (
-    ("Seaweed Ribbon", 3),
-    ("Bubble Stone", 5),
-    ("Pink Star Clip", 7),
-    ("Moon Shell Lamp", 9),
+    "seaweed_ribbon",
+    "bubble_stone",
+    "pink_star_clip",
+    "moon_shell_lamp",
+    "seaweed_snack",
+    "bubble_tea",
+    "tiny_sponge",
+    "pearl_tonic",
 )
 FOCUS_LABELS = {
     "crab": "Pomodoro Crab",
@@ -47,11 +60,15 @@ INFO_PANEL_SCROLL_IDS = (
 INFO_MENU_ITEMS = (
     "recent",
     "stats",
+    "tasks",
+    "inventory",
     "collection",
 )
 INFO_MENU_LABELS = {
     "recent": "Recent Events",
     "stats": "Stats",
+    "tasks": "Tasks",
+    "inventory": "Inventory",
     "collection": "Collection",
 }
 
@@ -132,9 +149,11 @@ class TerminalPetApp(App):
         ("pagedown", "page_down_info_panel", "Panel Down"),
         ("home", "scroll_home_info_panel", "Panel Top"),
         ("end", "scroll_end_info_panel", "Panel Bottom"),
-        ("enter", "toggle_pomodoro", "Start/Pause Timer"),
+        ("enter", "primary_action", "Select / Buy / Timer"),
         ("x", "stop_pomodoro", "Stop Timer"),
         ("o", "toggle_collection", "Collection"),
+        ("i", "toggle_inventory", "Inventory"),
+        ("u", "use_inventory", "Use Item"),
         ("q", "quit", "Quit"),
         ("f", "feed", "Feed"),
         ("p", "play", "Play"),
@@ -159,6 +178,7 @@ class TerminalPetApp(App):
         self._pet_is_moving = False
         self._focus_index = 1
         self._shop_index = 0
+        self._inventory_index = 0
         self._shell_panel_mode = "shop"
         self._pomodoro_mode = "idle"
         self._pomodoro_running = False
@@ -220,6 +240,10 @@ class TerminalPetApp(App):
 
     def action_shop_up(self) -> None:
         if self._active_info_panel_index == 2:
+            if self._current_info_menu() == "inventory":
+                self._cycle_inventory(-1)
+                self._refresh_event_panel()
+                return
             self._cycle_info_menu(-1)
             self._refresh_event_panel()
             return
@@ -230,6 +254,10 @@ class TerminalPetApp(App):
 
     def action_shop_down(self) -> None:
         if self._active_info_panel_index == 2:
+            if self._current_info_menu() == "inventory":
+                self._cycle_inventory(1)
+                self._refresh_event_panel()
+                return
             self._cycle_info_menu(1)
             self._refresh_event_panel()
             return
@@ -261,12 +289,58 @@ class TerminalPetApp(App):
     def action_toggle_collection(self) -> None:
         if self.pet is None:
             return
+        self._shell_panel_mode = "collection"
         self._info_menu_index = INFO_MENU_ITEMS.index("collection")
         self._active_info_panel_index = 2
         self._update_active_info_panel()
         self.pet.collection_unseen = False
         save_pet(self.pet)
         self._refresh_view()
+
+    def action_toggle_inventory(self) -> None:
+        if self.pet is None:
+            return
+        self._info_menu_index = INFO_MENU_ITEMS.index("inventory")
+        self._active_info_panel_index = 2
+        self._update_active_info_panel()
+        self._refresh_event_panel()
+
+    def action_use_inventory(self) -> None:
+        if self.pet is None:
+            return
+        item_ids = self._inventory_item_ids()
+        if not item_ids:
+            self._record_events(["Your inventory is empty."])
+            self._refresh_view()
+            return
+        item_id = item_ids[self._inventory_index % len(item_ids)]
+        message = use_item(self.pet, item_id)
+        self._record_events([message])
+        if not self._is_blocked_action(message):
+            record_counter(self.pet, "shop_use")
+            self._record_events(update_progress(self.pet))
+        save_pet(self.pet)
+        self._refresh_view()
+
+    def action_primary_action(self) -> None:
+        if self.pet is None:
+            return
+        if self.selected_target == "shell":
+            item_id = SHOP_ITEMS[self._shop_index]
+            message = buy_item(self.pet, item_id)
+            self._record_events([message])
+            if not self._is_blocked_action(message):
+                self._record_events(update_progress(self.pet))
+            save_pet(self.pet)
+            self._refresh_view()
+            return
+        if self.selected_target == "crab":
+            self.action_toggle_pomodoro()
+
+    def _cycle_inventory(self, step: int) -> None:
+        item_count = len(self._inventory_item_ids())
+        if item_count:
+            self._inventory_index = (self._inventory_index + step) % item_count
 
     def action_toggle_pomodoro(self) -> None:
         if self.pet is None or self.selected_target != "crab":
@@ -327,6 +401,7 @@ class TerminalPetApp(App):
         if self._scene_mode != "pomodoro":
             self._record_events(self.pet.tick())
         self._record_events(self._update_pomodoro(time.time()))
+        self._record_events(update_progress(self.pet))
         save_pet(self.pet)
         self._refresh_view()
 
@@ -410,6 +485,8 @@ class TerminalPetApp(App):
         return self.query_one(f"#{panel_id}", VerticalScroll)
 
     def _update_active_info_panel(self) -> None:
+        if not self.children:
+            return
         for index, panel_id in enumerate(INFO_PANEL_SCROLL_IDS):
             panel = self.query_one(f"#{panel_id}", VerticalScroll)
             if index == self._active_info_panel_index:
@@ -431,7 +508,10 @@ class TerminalPetApp(App):
             self.pet.shells += 1
             events.append("Focus session complete. Pomodoro crab found a reward shell.")
             self.pet.pomodoro_streak += 1
+            record_counter(self.pet, "focus")
+            record_counter(self.pet, "shell")
             events.extend(self._open_streak_chest_if_ready())
+            events.extend(update_progress(self.pet))
             self._pomodoro_mode = "break"
             self._pomodoro_running = True
             self._pomodoro_seconds_left = self.BREAK_DURATION_SECONDS
@@ -451,6 +531,7 @@ class TerminalPetApp(App):
 
         drop = roll_streak_chest_drop(random)
         self.pet.streak_chests_opened += 1
+        record_counter(self.pet, "chest")
         self.pet.collection_unseen = True
 
         if drop.kind == "shell":
@@ -487,10 +568,23 @@ class TerminalPetApp(App):
         action_result = action()
         self._record_events([action_result])
         self._trigger_reaction(action_name, action_result)
+        if not self._is_blocked_action(action_result):
+            counter_name = {
+                "feed": "feed",
+                "play": "play",
+                "clean": "clean",
+                "heal": "heal",
+                "discipline_pet": "discipline",
+                "toggle_lights": "sleep",
+            }[action_name]
+            record_counter(self.pet, counter_name)
+            record_counter(self.pet, "care_actions")
+            self._record_events(update_progress(self.pet))
         save_pet(self.pet)
         self._refresh_view()
 
-    def _trigger_reaction(self, action_name: str, action_result: str) -> None:
+    @staticmethod
+    def _is_blocked_action(action_result: str) -> bool:
         blocked_markers = (
             "already",
             "cannot",
@@ -498,8 +592,12 @@ class TerminalPetApp(App):
             "nothing to clean",
             "not sick",
             "ignores",
+            "do not have",
         )
-        if any(marker in action_result.lower() for marker in blocked_markers):
+        return any(marker in action_result.lower() for marker in blocked_markers)
+
+    def _trigger_reaction(self, action_name: str, action_result: str) -> None:
+        if self._is_blocked_action(action_result):
             self._reaction_name = None
             self._reaction_ticks_remaining = 0
             self._expression_name = None
@@ -524,6 +622,7 @@ class TerminalPetApp(App):
         self._pet_is_moving = False
         self._focus_index = 1
         self._shop_index = 0
+        self._inventory_index = 0
         self._shell_panel_mode = "shop"
         self._reset_pomodoro()
         save_pet(self.pet)
@@ -538,6 +637,7 @@ class TerminalPetApp(App):
         self._pet_is_moving = False
         self._focus_index = 1
         self._shop_index = 0
+        self._inventory_index = 0
         self._shell_panel_mode = "shop"
         self._reset_pomodoro()
         self._record_events(["Saved pet deleted."])
@@ -624,12 +724,19 @@ class TerminalPetApp(App):
                 "Shell Shop",
                 "",
                 "Use up/down to browse.",
-                "Press o to open Collection.",
+                "Enter to buy. i for Inventory.",
+                "o for Collection.",
                 "",
             ]
-            for index, (name, price) in enumerate(SHOP_ITEMS):
+            for index, item_id in enumerate(SHOP_ITEMS):
+                item = SHOP_CATALOG[item_id]
                 marker = ">" if index == self._shop_index else " "
-                lines.append(f"{marker} {name} - {price} shells")
+                if item.decorative:
+                    status = "owned" if item_id in self.pet.owned_decorations else "collection"
+                    lines.append(f"{marker} {item.name} - {item.price} shells ({status})")
+                else:
+                    stock = self.pet.inventory.get(item_id, 0)
+                    lines.append(f"{marker} {item.name} - {item.price} shells (x{stock})")
             return lines
 
         return [
@@ -663,6 +770,8 @@ class TerminalPetApp(App):
             performance_line(self.pet),
             "",
             f"Focus: {self._selection_label()}",
+            f"Selected: {self._selection_hint()}",
+            f"Level: {virtual_level(self.pet.xp)}   XP: {self.pet.xp}",
             f"Shells: {self.pet.shells}   Streak: {self.pet.pomodoro_streak}",
         ]
 
@@ -670,6 +779,8 @@ class TerminalPetApp(App):
         if self.pet is None:
             return ["No pet stats yet."]
         return [
+            f"Level       {virtual_level(self.pet.xp)}",
+            f"XP          {self.pet.xp}",
             f"Health      {self.pet.health}/4",
             f"Hunger      {self.pet.hunger}/4",
             f"Happiness   {self.pet.happiness}/4",
@@ -679,6 +790,43 @@ class TerminalPetApp(App):
             f"Mistakes    {self.pet.care_mistakes}",
             f"Age         {self.pet.age_seconds}s",
         ]
+
+    def _task_panel_lines(self) -> list[str]:
+        if self.pet is None:
+            return ["No tasks until you hatch a pet."]
+        daily_state = task_state(self.pet, "daily")
+        weekly_state = task_state(self.pet, "weekly")
+        lines = ["[b]Daily Tasks[/b]"]
+        for definition in task_definitions("daily"):
+            progress = daily_state["counters"].get(definition.counter, 0)
+            claimed = "✓" if definition.task_id in daily_state["claimed"] else " "
+            lines.append(f"[{claimed}] {definition.label} ({min(progress, definition.target)}/{definition.target})")
+        lines.append("")
+        lines.append("[b]Weekly Tasks[/b]")
+        for definition in task_definitions("weekly"):
+            progress = weekly_state["counters"].get(definition.counter, 0)
+            claimed = "✓" if definition.task_id in weekly_state["claimed"] else " "
+            lines.append(f"[{claimed}] {definition.label} ({min(progress, definition.target)}/{definition.target})")
+        return lines
+
+    def _inventory_item_ids(self) -> list[str]:
+        if self.pet is None:
+            return []
+        return [item_id for item_id in SHOP_ITEMS if self.pet.inventory.get(item_id, 0) > 0]
+
+    def _inventory_panel_lines(self) -> list[str]:
+        if self.pet is None:
+            return ["No inventory until you hatch a pet."]
+        item_ids = self._inventory_item_ids()
+        lines = ["[b]Inventory[/b]", "Use up/down to select, u to use.", ""]
+        if not item_ids:
+            lines.append("Empty. Visit Shell Shop to buy supplies.")
+            return lines
+        for index, item_id in enumerate(item_ids):
+            item = SHOP_CATALOG[item_id]
+            marker = ">" if index == self._inventory_index % len(item_ids) else " "
+            lines.append(f"{marker} {item.name} x{self.pet.inventory[item_id]}")
+        return lines
 
     def _recent_event_lines(self) -> list[str]:
         if not self.events:
@@ -697,6 +845,10 @@ class TerminalPetApp(App):
             lines.extend(self._recent_event_lines())
         elif current_menu == "stats":
             lines.extend(self._stats_panel_lines())
+        elif current_menu == "tasks":
+            lines.extend(self._task_panel_lines())
+        elif current_menu == "inventory":
+            lines.extend(self._inventory_panel_lines())
         else:
             if self.pet is None:
                 lines.append("No collection yet.")
@@ -705,6 +857,8 @@ class TerminalPetApp(App):
         return lines
 
     def _refresh_view(self) -> None:
+        if not self.children:
+            return
         self._refresh_new_pet_panel()
         self._refresh_pet_panel()
         self._refresh_shop_panel()
@@ -785,12 +939,28 @@ class TerminalPetApp(App):
 
     def _collection_panel_lines(self) -> list[str]:
         assert self.pet is not None
-        lines: list[str] = ["[b]Collection[/b]", "Press 'o' to return to Shell Shop.", ""]
+        lines: list[str] = ["[b]Collection[/b]", "Press 'o' to return to Collection.", ""]
+        lines.extend(
+            [
+                f"Virtual Level: {virtual_level(self.pet.xp)}",
+                f"XP: {self.pet.xp}",
+                f"Badges: {len(self.pet.owned_badges)}",
+                f"Decorations: {len(self.pet.owned_decorations)}",
+                "",
+                "[b]Achievement Badges[/b]",
+            ]
+        )
+        if not self.pet.owned_badges:
+            lines.append("- (none yet)")
+        else:
+            lines.extend(f"- {badge}" for badge in self.pet.owned_badges)
 
-        if not self.pet.character_shards and not self.pet.collected_shell_common and not self.pet.collected_shell_rare:
-            lines.append("No items yet.")
-            lines.append(f"Tip: Every {STREAK_CHEST_INTERVAL} focus streaks awards a Streak Chest.")
-            return lines
+        lines.extend(["", "[b]Shop Decorations[/b]"])
+        if not self.pet.owned_decorations:
+            lines.append("- (none yet)")
+        else:
+            for item_id in self.pet.owned_decorations:
+                lines.append(f"- {SHOP_CATALOG[item_id].name}")
 
         lines.append("[b]Character Shards[/b]")
         if not self.pet.character_shards:
@@ -806,6 +976,7 @@ class TerminalPetApp(App):
         lines.extend(["", "[b]Shell Collection[/b]"])
         lines.append(f"- Common: {self.pet.collected_shell_common}")
         lines.append(f"- Rare: {self.pet.collected_shell_rare}")
+        lines.append(f"- Streak chests: {self.pet.streak_chests_opened}")
         return lines
 
     def _refresh_status_panel(self) -> None:

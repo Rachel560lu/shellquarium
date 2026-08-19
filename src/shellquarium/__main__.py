@@ -5,6 +5,7 @@ import sys
 
 from shellquarium.core.persistence import delete_pet, load_pet, save_pet
 from shellquarium.core.pet import Pet
+from shellquarium.core.progression import record_counter, update_progress
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,27 +64,35 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.command == "status":
         pass
-    elif args.command == "feed":
-        messages.append(pet.feed())
-    elif args.command == "play":
-        messages.append(pet.play())
-    elif args.command == "clean":
-        messages.append(pet.clean())
-    elif args.command == "heal":
-        messages.append(pet.heal())
-    elif args.command == "discipline":
-        messages.append(pet.discipline_pet())
-    elif args.command == "sleep":
-        messages.append(pet.toggle_lights())
+    elif args.command in {"feed", "play", "clean", "heal", "discipline", "sleep"}:
+        action_name = {
+            "feed": "feed",
+            "play": "play",
+            "clean": "clean",
+            "heal": "heal",
+            "discipline": "discipline_pet",
+            "sleep": "toggle_lights",
+        }[args.command]
+        action_result = getattr(pet, action_name)()
+        messages.append(action_result)
+        if not _is_blocked_action(action_result):
+            record_counter(pet, args.command)
+            record_counter(pet, "care_actions")
     else:
         raise SystemExit(f"Unknown command: {args.command}")
 
+    messages.extend(update_progress(pet))
     save_pet(pet)
 
     for message in messages:
         print(message)
     for line in pet.status_lines():
         print(line)
+
+
+def _is_blocked_action(message: str) -> bool:
+    markers = ("already", "cannot", "not ready", "nothing to clean", "not sick", "ignores")
+    return any(marker in message.lower() for marker in markers)
 
 
 if __name__ == "__main__":
