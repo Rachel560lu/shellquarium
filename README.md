@@ -2,6 +2,12 @@
 
 A cozy terminal pet aquarium with a jelly pet, a crab companion, a shell shop, and a built-in Pomodoro mode.
 
+## Screenshots
+
+The main dashboard keeps the aquarium, pet actions, shell balance, and virtual progress visible in one terminal view.
+
+![Shellquarium main dashboard](docs/screenshots/shellquarium-main.png)
+
 ## What It Does
 
 This project gives you a small Tamagotchi-inspired pet that lives in a terminal aquarium.
