@@ -6,11 +6,11 @@ A cozy terminal pet aquarium with a jelly pet, a crab companion, a shell shop, a
 
 The main dashboard keeps the aquarium, pet actions, shell balance, and virtual progress visible in one terminal view.
 
-![Shellquarium main dashboard](docs/screenshots/shellquarium-main.svg)
+![Shellquarium main dashboard](docs/screenshots/shellquarium-main.png)
 
 | Shell Shop | Daily and Weekly Tasks | Collection and Achievements |
 | --- | --- | --- |
-| ![Shell Shop](docs/screenshots/shellquarium-shop.svg) | ![Daily and weekly tasks](docs/screenshots/shellquarium-tasks.svg) | ![Collection and achievements](docs/screenshots/shellquarium-collection.svg) |
+| ![Shell Shop](docs/screenshots/shellquarium-shop.png) | ![Daily and weekly tasks](docs/screenshots/shellquarium-tasks.png) | ![Collection and achievements](docs/screenshots/shellquarium-collection.png) |
 
 ## What It Does
 
