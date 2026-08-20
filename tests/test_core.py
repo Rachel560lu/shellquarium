@@ -119,6 +119,30 @@ def test_key_binding_feed_updates_pet():
     asyncio.run(run())
 
 
+def test_tall_terminal_uses_hero_aquarium_layout():
+    async def run() -> None:
+        app = TerminalPetApp()
+        app.pet = Pet(name="Pixel", stage=LifeStage.BABY)
+        async with app.run_test(size=(120, 50)) as pilot:
+            await pilot.pause()
+            assert "compact-layout" not in app.classes
+            assert app._scene_height() >= 20
+
+    asyncio.run(run())
+
+
+def test_short_terminal_uses_compact_layout():
+    async def run() -> None:
+        app = TerminalPetApp()
+        app.pet = Pet(name="Pixel", stage=LifeStage.BABY)
+        async with app.run_test(size=(120, 32)) as pilot:
+            await pilot.pause()
+            assert "compact-layout" in app.classes
+            assert app._scene_height() == SCENE_HEIGHT
+
+    asyncio.run(run())
+
+
 def test_dead_pet_shows_hatch_new_pet_controls():
     async def run() -> None:
         app = TerminalPetApp()
@@ -145,6 +169,20 @@ def test_render_scene_is_bounded_aquarium():
     assert "[orange1]" in scene
     assert "[bright_white]" in scene
     assert "[light_pink1]" in scene
+
+
+def test_render_scene_supports_taller_aquarium_without_changing_art():
+    pet = Pet(name="Pixel", stage=LifeStage.BABY)
+    scene = render_scene("tank", pet, 0, scene_height=24)
+    lines = scene.splitlines()
+
+    assert len(lines) == 26
+    assert "[bright_cyan]o[/]" in scene
+    assert "[bright_cyan]^[/]" in scene
+    assert "[orange1]=[/]" in scene
+    assert "[light_pink1]𓇻[/]" in scene
+    assert "[bright_white]œ[/]" in scene
+    assert lines[-1].startswith("[white]+[/]")
 
 
 def test_crab_animates_between_scene_frames():

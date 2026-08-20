@@ -54,6 +54,27 @@ CRAB_FRAMES = (
     ),
 )
 
+
+def _scene_positions(scene_height: int) -> dict[str, tuple[int, int]]:
+    """Return bottom-anchored positions for the tank decorations."""
+    floor_row = scene_height - 1
+    return {
+        "crab": (5, floor_row - 3),
+        "seaweed": (14, floor_row - 3),
+        "starfish": (35, floor_row - 2),
+        "shell": (24, floor_row - 2),
+    }
+
+
+def _bubble_positions(scene_height: int) -> tuple[tuple[int, int], ...]:
+    """Keep the original bubbles and add sparse bubbles in taller tanks."""
+    positions = [(30, 1), (39, 2), (24, 3), (34, 5), (42, 7), (28, 10), (37, 11)]
+    for row in range(14, max(14, scene_height - 1), 4):
+        x = 8 + (row * 7) % (SCENE_WIDTH - 12)
+        positions.append((x, row))
+    return tuple(positions)
+
+
 BASE_REACTIONS: dict[str, tuple[tuple[str, ...], ...]] = {
     "feed": (
         (
@@ -147,7 +168,9 @@ def render_scene(
     clock_phase: int = 0,
     clock_bar_symbols: list[str] | None = None,
     clock_bar_width: int | None = None,
+    scene_height: int = SCENE_HEIGHT,
 ) -> str:
+    scene_height = max(SCENE_HEIGHT, int(scene_height))
     pet_lines = get_pet_frame(pet, frame_index, mood_override=mood_override, is_moving=is_moving).splitlines()
     canvas = _build_scene_canvas(
         pet_lines,
@@ -163,6 +186,7 @@ def render_scene(
         clock_phase=clock_phase,
         clock_bar_symbols=clock_bar_symbols,
         clock_bar_width=clock_bar_width,
+        scene_height=scene_height,
     )
     top_border = "[white]+[/][white]-[/]" + "[white]-[/]" * (SCENE_WIDTH - 2) + "[white]-[/][white]+[/]"
     bottom_border = "[white]+[/][white]-[/]" + "[white]-[/]" * (SCENE_WIDTH - 2) + "[white]-[/][white]+[/]"
@@ -186,7 +210,9 @@ def render_scene_with_reaction(
     clock_phase: int = 0,
     clock_bar_symbols: list[str] | None = None,
     clock_bar_width: int | None = None,
+    scene_height: int = SCENE_HEIGHT,
 ) -> str:
+    scene_height = max(SCENE_HEIGHT, int(scene_height))
     pet_lines = get_pet_frame(pet, frame_index, mood_override=mood_override, is_moving=is_moving).splitlines()
     reaction_anchor = (pet_position[0] + PET_WIDTH + len(REACTION_GAP) - 4, max(0, pet_position[1] - 1))
     if not reaction_name:
@@ -205,6 +231,7 @@ def render_scene_with_reaction(
             clock_phase=clock_phase,
             clock_bar_symbols=clock_bar_symbols,
             clock_bar_width=clock_bar_width,
+            scene_height=scene_height,
         )
 
     reaction_map = BASE_REACTIONS
@@ -219,6 +246,7 @@ def render_scene_with_reaction(
             selected_target=selected_target,
             scene_mode=scene_mode,
             clock_text=clock_text,
+            scene_height=scene_height,
         )
 
     reaction_frames = reaction_map[reaction_name]
@@ -237,6 +265,7 @@ def render_scene_with_reaction(
         clock_phase=clock_phase,
         clock_bar_symbols=clock_bar_symbols,
         clock_bar_width=clock_bar_width,
+        scene_height=scene_height,
     )
     top_border = "[white]+[/][white]-[/]" + "[white]-[/]" * (SCENE_WIDTH - 2) + "[white]-[/][white]+[/]"
     bottom_border = "[white]+[/][white]-[/]" + "[white]-[/]" * (SCENE_WIDTH - 2) + "[white]-[/][white]+[/]"
@@ -257,24 +286,27 @@ def _build_scene_canvas(
     clock_phase: int = 0,
     clock_bar_symbols: list[str] | None = None,
     clock_bar_width: int | None = None,
+    scene_height: int = SCENE_HEIGHT,
 ) -> str:
+    scene_height = max(SCENE_HEIGHT, int(scene_height))
     pet_x, pet_y = pet_position
-    rows = [[" " for _ in range(SCENE_WIDTH)] for _ in range(SCENE_HEIGHT)]
+    rows = [[" " for _ in range(SCENE_WIDTH)] for _ in range(scene_height)]
 
-    bubble_positions = ((30, 1), (39, 2), (24, 3), (34, 5), (42, 7), (28, 10), (37, 11))
+    bubble_positions = _bubble_positions(scene_height)
     for bubble_x, bubble_y in bubble_positions:
         rows[bubble_y][bubble_x] = "[deepskyblue1].[/]"
 
     for x in range(SCENE_WIDTH):
         if x % 3 == 1:
-            rows[SCENE_HEIGHT - 1][x] = "[green]|[/]"
+            rows[scene_height - 1][x] = "[green]|[/]"
         else:
-            rows[SCENE_HEIGHT - 1][x] = "[green]~[/]"
+            rows[scene_height - 1][x] = "[green]~[/]"
 
-    seaweed_x, seaweed_y = SEAWEED_POSITION
+    positions = _scene_positions(scene_height)
+    seaweed_x, seaweed_y = positions["seaweed"]
     for row_index, seaweed_line in enumerate(SEAWEED_LINES):
         target_row = seaweed_y + row_index
-        if target_row >= SCENE_HEIGHT:
+        if target_row >= scene_height:
             break
         for column, char in enumerate(seaweed_line):
             target_column = seaweed_x + column
@@ -285,11 +317,11 @@ def _build_scene_canvas(
                 rows[target_row][target_column] = f"[{color}]{char}[/]"
 
     if scene_mode != "pomodoro":
-        shell_x, shell_y = SHELL_POSITION
+        shell_x, shell_y = positions["shell"]
         shell_lines = SHELL_FRAMES[(frame_index // 2) % len(SHELL_FRAMES)]
         for row_index, shell_line in enumerate(shell_lines):
             target_row = shell_y + row_index
-            if target_row >= SCENE_HEIGHT:
+            if target_row >= scene_height:
                 break
             for column, char in enumerate(shell_line):
                 target_column = shell_x + column
@@ -299,10 +331,10 @@ def _build_scene_canvas(
                     color = "bold bright_white" if selected_target == "shell" else "bright_white"
                     rows[target_row][target_column] = f"[{color}]{char}[/]"
 
-    starfish_x, starfish_y = STARFISH_POSITION
+    starfish_x, starfish_y = positions["starfish"]
     for row_index, starfish_line in enumerate(STARFISH_LINES):
         target_row = starfish_y + row_index
-        if target_row >= SCENE_HEIGHT:
+        if target_row >= scene_height:
             break
         for column, char in enumerate(starfish_line):
             target_column = starfish_x + column
@@ -312,13 +344,13 @@ def _build_scene_canvas(
                 rows[target_row][target_column] = f"[light_pink1]{char}[/]"
 
     if scene_mode != "pomodoro":
-        crab_x, crab_y = CRAB_POSITION
+        crab_x, crab_y = positions["crab"]
         crab_step = (frame_index // 2) % len(CRAB_FRAMES)
         crab_lines = CRAB_FRAMES[crab_step]
         crab_x += crab_step
         for row_index, crab_line in enumerate(crab_lines):
             target_row = crab_y + row_index
-            if target_row >= SCENE_HEIGHT:
+            if target_row >= scene_height:
                 break
             for column, char in enumerate(crab_line):
                 target_column = crab_x + column
@@ -344,7 +376,7 @@ def _build_scene_canvas(
 
     for row_index, pet_line in enumerate(pet_lines):
         target_row = pet_y + row_index
-        if target_row >= SCENE_HEIGHT:
+        if target_row >= scene_height:
             break
         for column, char in enumerate(pet_line):
             target_column = pet_x + column
@@ -361,7 +393,7 @@ def _build_scene_canvas(
         reaction_x, reaction_y = reaction_anchor
         for row_index, reaction_line in enumerate(reaction_lines):
             target_row = reaction_y + row_index
-            if target_row >= SCENE_HEIGHT:
+            if target_row >= scene_height:
                 break
             for column, char in enumerate(reaction_line):
                 target_column = reaction_x + column
@@ -414,7 +446,7 @@ def _draw_clock(
 
     for row_index, clock_line in enumerate(timer_lines):
         target_row = clock_y + row_index
-        if target_row >= SCENE_HEIGHT:
+        if target_row >= len(rows):
             break
         for column, char in enumerate(clock_line):
             target_column = clock_x + column
@@ -425,7 +457,7 @@ def _draw_clock(
 
     # Encouragement subtitle (no redundant small clock).
     label_row = clock_y + len(timer_lines)
-    if 0 <= label_row < SCENE_HEIGHT:
+    if 0 <= label_row < len(rows):
         subtitle = clock_subtitle or ""
         subtitle = subtitle[: (SCENE_WIDTH - 2)]
         label_x = max(0, (SCENE_WIDTH - len(subtitle)) // 2) if subtitle else 0
@@ -440,7 +472,7 @@ def _draw_clock(
 
     progress = max(0.0, min(1.0, float(clock_progress)))
     bar_row = label_row + 2
-    if bar_row >= SCENE_HEIGHT:
+    if bar_row >= len(rows):
         return
 
     # Fixed-width bar: fill part uses user-provided symbols; empty stays "-".
