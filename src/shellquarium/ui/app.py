@@ -6,6 +6,7 @@ import time
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.events import Resize
 from textual.widgets import Button, Footer, Header, Input, Static
 
 from shellquarium.core.persistence import delete_pet, load_pet, save_pet
@@ -94,7 +95,7 @@ class TerminalPetApp(App):
     }
 
     #pet-panel {
-        height: 18;
+        height: 2fr;
         min-height: 18;
     }
 
@@ -114,6 +115,7 @@ class TerminalPetApp(App):
 
     #info-panels {
         height: 1fr;
+        min-height: 8;
         layout: grid;
         grid-size: 3;
         grid-columns: 1fr 1fr 1fr;
@@ -135,6 +137,16 @@ class TerminalPetApp(App):
 
     .panel-content {
         width: 1fr;
+    }
+
+    Screen.compact-layout #pet-panel {
+        height: 18;
+        min-height: 14;
+    }
+
+    Screen.compact-layout #info-panels {
+        height: 1fr;
+        min-height: 6;
     }
     """
 
@@ -219,8 +231,35 @@ class TerminalPetApp(App):
     def on_mount(self) -> None:
         self.set_interval(1.0, self._tick_pet)
         self.set_interval(0.45, self._advance_animation)
+        self._update_layout_mode()
         self._update_active_info_panel()
         self._refresh_view()
+        for panel_id in INFO_PANEL_SCROLL_IDS:
+            self.query_one(f"#{panel_id}").can_focus = False
+        self.set_focus(None)
+
+    def _update_layout_mode(self) -> None:
+        """Use the compact layout only when the terminal cannot fit the hero tank."""
+        if self.size.height < 38:
+            self.add_class("compact-layout")
+        else:
+            self.remove_class("compact-layout")
+
+    def on_resize(self, event: Resize) -> None:
+        del event
+        self._update_layout_mode()
+        if self.pet is not None and self.is_mounted:
+            self._refresh_pet_panel()
+
+    def _scene_height(self) -> int:
+        """Return the available inner tank height, preserving the compact baseline."""
+        if "compact-layout" in self.classes:
+            return SCENE_HEIGHT
+        try:
+            sprite_height = int(self.query_one("#pet-sprite", Static).size.height)
+        except Exception:
+            return SCENE_HEIGHT
+        return max(SCENE_HEIGHT, sprite_height - 2)
 
     @property
     def selected_target(self) -> str:
@@ -427,11 +466,12 @@ class TerminalPetApp(App):
         dx, dy = random.choice(((0, -1), (0, 1), (-1, 0), (1, 0), (0, 0)))
         current_x, current_y = self._pet_position
         max_x = SCENE_WIDTH - PET_WIDTH
-        max_y = SCENE_HEIGHT - PET_HEIGHT
+        scene_height = self._scene_height()
+        max_y = scene_height - PET_HEIGHT
         min_y = 0
         if self._scene_mode == "pomodoro":
             # Keep the pet away from the timer area, but let it keep swimming.
-            min_y = max(0, SCENE_HEIGHT - PET_HEIGHT - 2)
+            min_y = max(0, scene_height - PET_HEIGHT - 2)
         next_x = max(0, min(max_x, current_x + dx))
         next_y = max(min_y, min(max_y, current_y + dy))
         self._pet_is_moving = (next_x, next_y) != self._pet_position
@@ -447,7 +487,7 @@ class TerminalPetApp(App):
         if mode == "focus":
             self._scene_mode = "pomodoro"
             # Nudge the pet into the safe swimming band for the timer scene.
-            min_y = max(0, SCENE_HEIGHT - PET_HEIGHT - 2)
+            min_y = max(0, self._scene_height() - PET_HEIGHT - 2)
             self._pet_position = (self._pet_position[0], max(self._pet_position[1], min_y))
             self._record_events(["Pomodoro crab started a focus session."])
         else:
@@ -893,6 +933,13 @@ class TerminalPetApp(App):
         if self.pet is None:
             sprite.update("( no pet )")
             return
+        scene_height = self._scene_height()
+        max_x = SCENE_WIDTH - PET_WIDTH
+        max_y = scene_height - PET_HEIGHT
+        self._pet_position = (
+            max(0, min(max_x, self._pet_position[0])),
+            max(0, min(max_y, self._pet_position[1])),
+        )
         clock_progress: float | None = None
         clock_subtitle: str | None = None
         clock_bar_symbols: list[str] | None = None
@@ -930,6 +977,7 @@ class TerminalPetApp(App):
                 clock_subtitle=clock_subtitle,
                 clock_bar_symbols=clock_bar_symbols,
                 clock_bar_width=clock_bar_width,
+                scene_height=scene_height,
             )
         )
 
